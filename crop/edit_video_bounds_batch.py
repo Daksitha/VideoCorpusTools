@@ -327,7 +327,7 @@ def generate_crop_area_one_video( file_path, video_format, out_json, output_path
 
 if __name__ == '__main__':
     #initiate the logger
-    logging.basicConfig(filename='log\edit_video_bounds_batch{}.log'.format(datetime.datetime.now().strftime('%d_%m_%Y')),
+    logging.basicConfig(filename='edit_video_bounds_batch{}.log'.format(datetime.datetime.now().strftime('%d_%m_%Y')),
                         level=logging.DEBUG)
     logging.info("=============== Start at {} ==================".format(datetime.datetime.now()))
 
