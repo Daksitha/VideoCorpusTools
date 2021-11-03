@@ -1,68 +1,124 @@
+# Some of the code based taken from https://github.com/cartovarc/ffmpeg-python-common-encryption
+# ffmpeg command:
+# ffmpeg -decryption_key 5df1b4e0d7ca82a62177e3518fe2f35a -i "./video_encripted.mp4" -pix_fmt bgr24 -vcodec copy "./video_decripted.mp4"
+
 from subprocess import check_output, STDOUT, CalledProcessError
 import os
 import time
 import sys
+import logging
+import secrets
+import argparse
+import datetime
 
-# ffmpeg command:
-# ffmpeg -decryption_key 5df1b4e0d7ca82a62177e3518fe2f35a -i "./video_encripted.mp4" -pix_fmt bgr24 -vcodec copy "./video_decripted.mp4"
 
-schema_encript = "cenc-aes-ctr"
-key_encript = "5df1a4e0d7ca82a62177e3518fe2f35a"
-kid_encript = "d0d28b3d0265e02ccf4612d4bd22c24f"
+def make_output_directoy(dir, name):
+    director_name = os.path.splitext(name)[0]
+    path_n = os.path.join(dir, director_name)
+    if os.path.isdir(path_n):
+        logging.warning("Directory already exist {}".format(path_n))
+        return path_n
+    else:
+        os.mkdir(path_n)
+        logging.info("Creating dir {}".format(path_n))
 
-path_input_video_dir = "D:\Daksitha\ODP\Cropped_v1"
+    return path_n
 
-def create_directory(path_input_video_dir, dir_name):
-    out_path = os.path.join(path_input_video_dir, dir_name)
-    # create folder for encrypted files
-    if not os.path.isdir(out_path):
-        os.mkdir(out_path)
-    return out_path
 
-def encrypt_video(video_path,output_video_path):
+def encrypt_video(video_path, output_video_path, key_encrypt, key_id):
     start_time = time.time()
-    print("{} file is encrypting...start_time: {}".format(video_path, start_time))
+
+    logging.info("{0} file is encrypting with {1} key_encrypt and "
+                 "key_id {2}...start_time: {3}".format(video_path, key_encrypt, key_id, start_time))
+    print("{0} file is encrypting with {1} key_encrypt and "
+          "key_id {2}...start_time: {3}".format(video_path, key_encrypt, key_id, start_time))
+
     ffmpeg_command = ['ffmpeg',
                       '-i', video_path,
                       "-vcodec", "copy",
-                      "-encryption_scheme", schema_encript,
-                      "-encryption_key", key_encript,
-                      "-encryption_kid", kid_encript, output_video_path]
+                      "-encryption_scheme", args.encry_schema,
+                      "-encryption_key", key_encrypt,
+                      "-encryption_kid", key_id, output_video_path]
 
     try:
         output_ffmpeg_execution = check_output(ffmpeg_command, stderr=STDOUT)
+        logging.debug(output_ffmpeg_execution)
         print(output_ffmpeg_execution)
     except CalledProcessError as e:
-        print(e)
+        logging.error(e)
+        logging.error(e.output)
         print(e.output)
-    # print(os.path.join(directory, filename))
+
     elapsed = time.time() - start_time
-    print("________Successfully encrypted_____________. time elapsed: {}".format(elapsed))
+    logging.debug("%% End encryption %%. time elapsed: {}".format(elapsed))
 
 
-def encrypt_file_directory(path_input_video_dir):
-
+def encrypt_file_directory(path_input_video_dir, output_video_dir, key_encrypt, key_id):
     for filename in os.listdir(path_input_video_dir):
-        temp_path = os.path.join(path_input_video_dir,filename)
-        #print(temp_path)
-        if os.path.isdir(temp_path):
-            print("{} is a directoy".format(temp_path))
-            encrypt_file_directory(temp_path)
-        elif os.path.isfile(temp_path):
-            print("{} is a file".format(filename))
+        file_path = os.path.join(path_input_video_dir, filename)
+
+        if os.path.isdir(file_path):
+            logging.info(" ________{} is a directory_____________".format(file_path))
+            # recursively search for files
+            new_video_dir = make_output_directoy(output_video_dir, filename)
+            encrypt_file_directory(file_path, new_video_dir, key_encrypt, key_id)
+
+        elif os.path.isfile(file_path):
+            logging.info(" ------------- {} is a file -------------------".format(file_path))
+
             if filename.endswith(".m4v") or filename.endswith(".mp4"):
-                out_video_dir = create_directory(path_input_video_dir,"Encrypted")
-                output_video_path = os.path.join(out_video_dir, "{0}.encrypted.mp4".format(os.path.splitext(filename)[0]))
-                input_video = os.path.join(path_input_video_dir,filename)
+                input_video = os.path.join(path_input_video_dir, filename)
+                logging.info("input_video {}".format(input_video))
 
-                encrypt_video(input_video,output_video_path)
+                out_video_name = "{0}.encrypted.{1}".format(os.path.splitext(filename)[0], args.out_format)
+                # output
+                output_video_path = os.path.join(output_video_dir, out_video_name)
+                logging.info("output_video_path {}".format(output_video_path))
 
+                encrypt_video(input_video, output_video_path, key_encrypt, key_id)
 
-
-def main() -> int:
-    """Encrypt video files inside a directory"""
-    encrypt_file_directory(path_input_video_dir)
-    return 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description=' Encrypt video files of mp4 and m4v format')
+    parser.add_argument('--in_dir',
+                        help='Path for videos to encrypt',
+                        required=True)
+    parser.add_argument('--out_dir',
+                        help='Path for the output video file',
+                        required=True)
+    parser.add_argument('--out_format',
+                        help='Path for the output video file',
+                        default='mp4',
+                        required=False)
+    parser.add_argument('--encry_schema',
+                        help='Path for the output video file',
+                        default="cenc-aes-ctr",
+                        required=False)
+    parser.add_argument('--key_encrypt',
+                        help='Hex 16 byte value for encryption',
+                        default=secrets.token_hex(16),
+                        required=False)
+    parser.add_argument('--key_id',
+                        help='Identifier for the encryption key',
+                        default=secrets.token_hex(16),
+                        required=False)
+
+    args = parser.parse_args()
+
+    # logger location
+    text_file = os.path.join(args.out_dir,
+                             "encryption_session_summary{}.log".format(
+                                 datetime.datetime.now().strftime('%H_%M_%d_%m_%Y')))
+    logging.basicConfig(
+        filename=text_file,
+        level=logging.DEBUG)
+    logging.debug("=============== Start at {} ==================".format(datetime.datetime.now()))
+    print("=============== Start at {} ==================".format(datetime.datetime.now()))
+    logging.info(
+        "in_dir: {},key_encrypt: {}, key_id {} out_dir {} encry_schema {}".format(args.in_dir, args.key_encrypt, args.key_id,
+                                                                                  args.out_dir, args.encry_schema))
+
+    encrypt_file_directory(args.in_dir, args.out_dir, args.key_encrypt, args.key_id)
+
+    logging.debug("=============== Ends Session at {} ==================".format(datetime.datetime.now()))
+    print("=============== Ends Session at {} ==================".format(datetime.datetime.now()))
