@@ -83,12 +83,12 @@ if __name__ == '__main__':
     with open(args.in_json, "r") as json_file:
         bounds_dict = json.load(json_file)
         # NOTE: inbound json format
-        # "video_name": {"Patient": [{"crop_area": {"x": 379, "y": 3, "width": 334, "height": 568},
-        #                                         "metadata": {"nb_frames": "110431", "width": 718, "height": 576,
-        #                                                      "r_frames": "25/1"}, "isCropAreaSet": true}],
-        #                            "Therapist": [{"crop_area": {"x": 1, "y": 2, "width": 375, "height": 569},
-        #                                           "metadata": {"nb_frames": "110431", "width": 718, "height": 576,
-        #                                                        "r_frames": "25/1"}, "isCropAreaSet": true}]}
+        # "video_name": {"Patient": [{"crop_area": {"x": 379, "y": 3, "width": 334, "height": 568},...
+        #                "Therapist": [{"crop_area": {"x": 1, "y": 2, "width": 375, "height": 569},...
+        # OR
+        # "video_name": [{"crop_area": {"x": 379, "y": 3, "width": 334, "height": 568},...
+        #
+
         num_videos_indx = 0
         for video_name in bounds_dict:
             num_videos_indx += 1
@@ -105,23 +105,42 @@ if __name__ == '__main__':
                 logging.info("Video name: {0}".format(video_name))
 
                 data_dict = bounds_dict["{0}".format(video_name)]
-                for person in data_dict:
-                    logging.info("Extracting cropping area for {} in {} ".format(person, video_name))
-                    print("Extracting cropping area for {} in {} ".format(person, video_name))
-                    data_ = data_dict[person][0]
-                    logging.info("Cropping data {} ".format(data_))
-                    print("Cropping data {} ".format(data_))
+                if isinstance(data_dict, 'list'):
+                    logging.info("Extracting cropping area for {}".format( video_name))
+                    print("Extracting cropping area for {} ".format( video_name))
 
-                    crop_dim = data_['crop_area']
-                    metadata = data_['metadata']
-
+                    crop_dim = data_dict['crop_area']
+                    metadata = data_dict['metadata']
 
                     bounds = crop_dim["x"], crop_dim["y"], crop_dim["width"], crop_dim["height"]
                     # create a directory for output
                     path_n = make_output_directoy(args.ov_dir, video_name)
-                    video_out = os.path.join(path_n,"{}.video[crop].{}".format(person,args.ov_format))
+                    video_out = os.path.join(path_n, "{}.video[crop].{}".format(person, args.ov_format))
                     print("Video output:{}".format(video_out))
-                    #crop_video(in_video, bounds, video_out)
+                    crop_video(in_video, bounds, video_out)
+
+                elif isinstance(data_dict, 'dict'):
+
+                    for person in data_dict:
+                        logging.info("Extracting cropping area for {} in {} ".format(person, video_name))
+                        print("Extracting cropping area for {} in {} ".format(person, video_name))
+
+                        data_ = data_dict[person][0]
+                        logging.info("Cropping data {} ".format(data_))
+                        print("Cropping data {} ".format(data_))
+
+                        crop_dim = data_['crop_area']
+                        metadata = data_['metadata']
+
+
+                        bounds = crop_dim["x"], crop_dim["y"], crop_dim["width"], crop_dim["height"]
+                        # create a directory for output
+                        path_n = make_output_directoy(args.ov_dir, video_name)
+                        video_out = os.path.join(path_n,"{}.video[crop].{}".format(person,args.ov_format))
+                        print("Video output:{}".format(video_out))
+                        crop_video(in_video, bounds, video_out)
+                else:
+                    raise Exception("Sorry, input jason object is neither a list nor a dict")
 
 
             except json.JSONDecodeError as je:
