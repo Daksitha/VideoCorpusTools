@@ -66,7 +66,7 @@ def decrypt_file_directory(path_input_video_dir, output_video_dir, key_decrypt):
                 input_video = os.path.join(path_input_video_dir, filename)
                 logging.info("input_video {}".format(input_video))
 
-                out_video_name = "{0}.{1}.{2}".format(filename.split(".")[0],args.suffix, args.out_format)
+                out_video_name = "{0}.{1}".format(filename.split(".")[0], args.out_format)
                 # output
                 #print(os.path.splitext(filename)[0])
                 output_video_path = os.path.join(output_video_dir, out_video_name)
@@ -77,26 +77,22 @@ def decrypt_file_directory(path_input_video_dir, output_video_dir, key_decrypt):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description=' Decrypt video files given the decrypted key')
-    parser.add_argument('--in_dir',
-                        help='Path to encrypted videos',
+    parser = argparse.ArgumentParser(description=' Decrypt video files given a decryption key')
+    parser.add_argument('--in_dir_vid',
+                        help='Path to encrypted video directory or file',
                         required=True)
     parser.add_argument('--out_dir',
-                        help='Path for the output video file',
+                        help='Path to store decrypted videos',
                         required=True)
     parser.add_argument('--decryption_key',
-                        help='Key to decrypt video data. Usually it is a Hex 16 byte value',
+                        help='Key that is used to encrypt the video(s). Usually it is a Hex 16 byte value',
                         required=True)
-    parser.add_argument('--out_format',
+    parser.add_argument('--out_vformat',
                         help='you can enter valid output video format with an ending. '
-                             'Ex mp4 ',
+                             'Ex mp4, mov.mp4 or video.mp4 ',
                         default="mp4",
                         required=False)
-    parser.add_argument('--suffix',
-                        help='Format file name ',
-                        type=str,
-                        default="decrypted",
-                        required=False)
+
 
 
     args = parser.parse_args()

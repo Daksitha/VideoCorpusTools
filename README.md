@@ -78,8 +78,9 @@ You can click and hold left mouse button on the left-top most poing of the cropp
       ]
     }
  ```
-### Crop videos using the cropping area defined 
-In case, you have multiple cropping areas that needs to be cropped from the same video, you can use json
+### Crop videos using area defined 
+This script is quite self explonatory. One thing to notice that videos will be cropped and saved inside individual folders. These folders are named after the original video name.
+>Tip: In case, you have multiple cropping areas that needs to be cropped from the same video, you can define them in seperate sessions and use merge_two_json.py script to group them.
 ```
 python crop_video_batch.py --help
 usage: crop_video_batch.py [-h] --inv_dir INV_DIR --in_json IN_JSON --ov_dir
@@ -104,101 +105,57 @@ optional arguments:
 
 _Warning!!!_ The resolution of the output video might differ from the width/height specified in the JSON file. This is due to limitations of some codecs.
 
-As an example, if you have ACG video_corpus stored in 
 
-## Crop Multiple Videos 
 
-Dillinger is currently extended with the following plugins.
-Instructions on how to use them in your own application are linked below.
-
-| Plugin | README |
-| ------ | ------ |
-| Dropbox | [plugins/dropbox/README.md][PlDb] |
-| GitHub | [plugins/github/README.md][PlGh] |
-| Google Drive | [plugins/googledrive/README.md][PlGd] |
-| OneDrive | [plugins/onedrive/README.md][PlOd] |
-| Medium | [plugins/medium/README.md][PlMe] |
-| Google Analytics | [plugins/googleanalytics/README.md][PlGa] |
-
-## Development
-
-Want to contribute? Great!
-
-Dillinger uses Gulp + Webpack for fast developing.
-Make a change in your file and instantaneously see your updates!
-
-Open your favorite Terminal and run these commands.
-
-First Tab:
-
-```sh
-node app
+# Video Encryption and Decryption
+## Encryption
+Navigate inside the `encrypt_and_decrypt`folder and run video_batch_encrypt.py scrip to encrypt a single video or a nested directory with videos.
+>`--encry_schema`, `--key_encrypt`, and `--key_id` are optional. Default values are cenc-aes-ctr and two hex tokens generates with secrets.token_hex(16). All of these information will be saved in a log file to the  `--out_dir`. This way it enables the user to share encrypted keys with other users 
 ```
+usage: video_batch_encrypt.py [-h] --in_dir IN_DIR --out_dir OUT_DIR
+                              [--out_format OUT_FORMAT]
+                              [--encry_schema ENCRY_SCHEMA]
+                              [--key_encrypt KEY_ENCRYPT] [--key_id KEY_ID]
 
-Second Tab:
+Encrypt video files of mp4 and m4v format
 
-```sh
-gulp watch
+optional arguments:
+  -h, --help            show this help message and exit
+  --in_dir IN_DIR       Path for videos to encrypt
+  --out_dir OUT_DIR     Path for the output video file
+  --out_format OUT_FORMAT
+                        Path for the output video file
+  --encry_schema ENCRY_SCHEMA
+                        Path for the output video file
+  --key_encrypt KEY_ENCRYPT
+                        Hex 16 byte value for encryption
+  --key_id KEY_ID       Identifier for the encryption key
 ```
-
-(optional) Third:
-
-```sh
-karma test
+## Decryption
+Navigate inside the `encrypt_and_decrypt`folder and run video_batch_decrypt.py scrip to decrypt a single video or a nested directory with videos.
 ```
+usage: video_batch_decrypt.py [-h] --in_dir_vid IN_DIR_VID --out_dir OUT_DIR
+                              --decryption_key DECRYPTION_KEY
+                              [--out_vformat OUT_VFORMAT]
 
-#### Building for source
+Decrypt video files given a decryption key
 
-For production release:
-
-```sh
-gulp build --prod
+optional arguments:
+  -h, --help            show this help message and exit
+  --in_dir_vid IN_DIR_VID
+                        Path to encrypted video directory or file
+  --out_dir OUT_DIR     Path to store decrypted videos
+  --decryption_key DECRYPTION_KEY
+                        Key that is used to encrypt the video(s). Usually it
+                        is a Hex 16 byte value
+  --out_vformat OUT_VFORMAT
+                        you can enter valid output video format with an
+                        ending. Ex mp4, mov.mp4 or video.mp4
 ```
-
-Generating pre-built zip archives for distribution:
-
-```sh
-gulp build dist --prod
-```
-
-## Docker
-
-Dillinger is very easy to install and deploy in a Docker container.
-
-By default, the Docker will expose port 8080, so change this within the
-Dockerfile if necessary. When ready, simply use the Dockerfile to
-build the image.
-
-```sh
-cd dillinger
-docker build -t <youruser>/dillinger:${package.json.version} .
-```
-
-This will create the dillinger image and pull in the necessary dependencies.
-Be sure to swap out `${package.json.version}` with the actual
-version of Dillinger.
-
-Once done, run the Docker image and map the port to whatever you wish on
-your host. In this example, we simply map port 8000 of the host to
-port 8080 of the Docker (or whatever port was exposed in the Dockerfile):
-
-```sh
-docker run -d -p 8000:8080 --restart=always --cap-add=SYS_ADMIN --name=dillinger <youruser>/dillinger:${package.json.version}
-```
-
-> Note: `--capt-add=SYS-ADMIN` is required for PDF rendering.
-
-Verify the deployment by navigating to your server address in
-your preferred browser.
-
-```sh
-127.0.0.1:8000
-```
-
 ## License
 
-MIT
-Some of the code base was taken from our original project 
+GNU General Public License v3.0
+Some of the code base was taken from one of our projects
 [dfki_sign_language][dfki_sign_language]
 
 **Free Software, Hell Yeah!**
@@ -206,22 +163,4 @@ Some of the code base was taken from our original project
 [//]: # (These are reference links used in the body of this note and get stripped out when the markdown processor does its job. There is no need to format nicely because it shouldn't be seen. Thanks SO - http://stackoverflow.com/questions/4823468/store-comments-in-markdown-syntax)
 
    [dfki_sign_language]: <https://github.com/Daksitha/VideoProcessingTools/tree/dev>
-   [git-repo-url]: <https://github.com/joemccann/dillinger.git>
-   [john gruber]: <http://daringfireball.net>
-   [df1]: <http://daringfireball.net/projects/markdown/>
-   [markdown-it]: <https://github.com/markdown-it/markdown-it>
-   [Ace Editor]: <http://ace.ajax.org>
-   [node.js]: <http://nodejs.org>
-   [Twitter Bootstrap]: <http://twitter.github.com/bootstrap/>
-   [jQuery]: <http://jquery.com>
-   [@tjholowaychuk]: <http://twitter.com/tjholowaychuk>
-   [express]: <http://expressjs.com>
-   [AngularJS]: <http://angularjs.org>
-   [Gulp]: <http://gulpjs.com>
-
-   [PlDb]: <https://github.com/joemccann/dillinger/tree/master/plugins/dropbox/README.md>
-   [PlGh]: <https://github.com/joemccann/dillinger/tree/master/plugins/github/README.md>
-   [PlGd]: <https://github.com/joemccann/dillinger/tree/master/plugins/googledrive/README.md>
-   [PlOd]: <https://github.com/joemccann/dillinger/tree/master/plugins/onedrive/README.md>
-   [PlMe]: <https://github.com/joemccann/dillinger/tree/master/plugins/medium/README.md>
-   [PlGa]: <https://github.com/RahulHP/dillinger/blob/master/plugins/googleanalytics/README.md>
+   
