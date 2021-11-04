@@ -110,7 +110,7 @@ _Warning!!!_ The resolution of the output video might differ from the width/heig
 # Video Encryption and Decryption
 ## Encryption
 Navigate inside the `encrypt_and_decrypt`folder and run video_batch_encrypt.py scrip to encrypt a single video or a nested directory with videos.
->`--encry_schema`, `--key_encrypt`, and `--key_id` are optional. Default values are cenc-aes-ctr and two hex tokens generates with secrets.token_hex(16). All of these information will be saved in a log file to the  `--out_dir`. This way it enables the user to share encrypted keys with other users 
+>`--encry_schema`, `--key_encrypt`, and `--key_id` are optional. Default values are cenc-aes-ctr and two hex tokens generated with secrets.token_hex(16). All of these information will be saved in a log file to the  `--out_dir`. This way it enables the user to share encrypted keys with other users 
 ```
 usage: video_batch_encrypt.py [-h] --in_dir IN_DIR --out_dir OUT_DIR
                               [--out_format OUT_FORMAT]
