@@ -132,7 +132,7 @@ optional arguments:
   --key_id KEY_ID       Identifier for the encryption key
 ```
 ## Decryption
-Navigate inside the `encrypt_and_decrypt`folder and run video_batch_decrypt.py scrip to decrypt a single video or a nested directory with videos.
+Navigate inside the `encrypt_and_decrypt`folder and run video_batch_decrypt.py scrip to decrypt a single video or a nested directories with videos.
 ```
 usage: video_batch_decrypt.py [-h] --in_dir_vid IN_DIR_VID --out_dir OUT_DIR
                               --decryption_key DECRYPTION_KEY
