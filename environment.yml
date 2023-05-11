@@ -3,28 +3,13 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - brotlipy=0.7.0=py37h2bbff1b_1003
-  - ca-certificates=2021.7.5=haa95532_1
-  - cffi=1.14.6=py37h2bbff1b_0
-  - cryptography=3.4.7=py37h71e12ea_0
-  - ffmpeg=4.2.2=he774522_0
-  - openssl=1.1.1l=h2bbff1b_0
-  - pip=21.2.4=pyhd8ed1ab_0
-  - pycparser=2.20=py_2
-  - pyopenssl=20.0.1=pyhd3eb1b0_1
-  - pysocks=1.7.1=py37_1
-  - python=3.7.10=h7840368_101_cpython
-  - python_abi=3.7=2_cp37m
-  - tzdata=2021a=h5d7bf9c_0
-  - setuptools=58.0.4=py37h03978a9_1
-  - six=1.16.0=pyhd3eb1b0_0
-  - sqlite=3.36.0=h8ffe710_1
-  - ucrt=10.0.20348.0=h57928b3_0
-  - vc=14.2=hb210afc_5
-  - vs2015_runtime=14.29.30037=h902a5da_5
-  - wheel=0.37.0=pyhd8ed1ab_1
-  - win_inet_pton=1.1.0=py37haa95532_0
-  - wincertstore=0.2=py39haa95532_2
+  - ffmpeg
+  - pip
+  - pycparser
+  - pyopenssl
+  - setuptools
+  - six
+  - wheel
   - pip:
     - absl-py==0.12.0
     - atomicwrites==1.4.0

@@ -14,13 +14,19 @@ I have used Conda [Conda](https://anaconda.org/) as the environment managemer fo
 Install the dependencies and devDependencies.
 Using conda you can use environment.yml to create the environment. Environment name is already added in the .yml file as video_corpus
 ```sh
-conda env create -f environment.yml
+conda install mamba -n base -c conda-forge
 ```
-
+```sh
+mamba create -n videocorpus python=3.8
+```
+```sh
+echo "Installing conda packages"
+mamba env update -n videocorpus --file environment.yml 
+```
 Activate the environments...
 
 ```sh
-conda activate video_corpus
+conda activate videocorpus
 ```
 
 ## Scripts
