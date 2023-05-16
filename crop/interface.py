@@ -1,13 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal
-import cv2
-import numpy as np
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QPushButton, QVBoxLayout, QLabel, QApplication, QWidget, QFileDialog
-import sys
-from PyQt5.QtGui import QImage, QPixmap
 
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QLabel, QWidget, QVBoxLayout, QPushButton, QApplication, QFileDialog
 
 import cv2
@@ -17,6 +8,11 @@ from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import QLabel
 import json
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton
+from PyQt5.QtWidgets import QMessageBox , QProgressBar
+
 
 class ClickableQLabel(QLabel):
     def __init__(self, parent=None):
@@ -71,6 +67,58 @@ class VideoThread(QThread):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self.wait()
+
+
+class VideoCropThread(QThread):
+    progress_changed = pyqtSignal(int)
+    def __init__(self, video_path, crop_rect, output_name):
+        super().__init__()
+        self.video_path = video_path
+        self.crop_rect = crop_rect
+        self.output_name = output_name
+
+    def run(self):
+        # Open the video file.
+        cap = cv2.VideoCapture(self.video_path)
+        if not cap.isOpened():
+            print(f"Error: Can't open video file {self.video_path}")
+            return
+
+        # Get video parameters.
+        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+        codec = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+
+        # Ensure that cropped dimensions are even numbers
+        crop_width = self.crop_rect.width() if self.crop_rect.width() % 2 == 0 else self.crop_rect.width() - 1
+        crop_height = self.crop_rect.height() if self.crop_rect.height() % 2 == 0 else self.crop_rect.height() - 1
+
+        out = cv2.VideoWriter(self.output_name, cv2.VideoWriter_fourcc(*codec), fps, (crop_width, crop_height))
+
+        total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        processed_frames = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Crop the frame.
+            cropped_frame = frame[self.crop_rect.y():self.crop_rect.y()+crop_height,
+                                  self.crop_rect.x():self.crop_rect.x()+crop_width]
+
+            # Write the frame into the output file.
+            out.write(cropped_frame)
+
+            processed_frames += 1
+            self.progress_changed.emit(int(processed_frames / total_frames * 100))  # Emit signal
+
+        # Release everything when the job is finished.
+        cap.release()
+        out.release()
+
 
 # class VideoWindow(QWidget):
 #     def __init__(self):
@@ -129,17 +177,25 @@ class VideoWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.video_path = None
+
         self.vbox = QVBoxLayout(self)
         self.load_btn = QPushButton("Load Video", self)
         self.save_btn = QPushButton("Save Crop Area", self)
         self.label = ClickableQLabel(self)
+        self.textbox = QLineEdit(self)
+        self.progress = QProgressBar(self)
+
 
         self.vbox.addWidget(self.load_btn)
         self.vbox.addWidget(self.save_btn)
+        self.vbox.addWidget(self.textbox)
         self.vbox.addWidget(self.label)
+        self.vbox.addWidget(self.progress)
 
         self.load_btn.clicked.connect(self.open_file)
-        self.save_btn.clicked.connect(self.save_crop_rectangle)
+        #self.save_btn.clicked.connect(self.save_crop_rectangle)
+        self.save_btn.clicked.connect(self.start_cropping)
 
         self.setGeometry(300, 300, 800, 600)
         self.setWindowTitle('PyQt5 Video')
@@ -150,6 +206,7 @@ class VideoWindow(QWidget):
         options |= QFileDialog.ReadOnly
         file, _ = QFileDialog.getOpenFileName(self, 'QFileDialog.getOpenFileName()', '', 'Video Files (*.mp4 *.flv *.ts *.mts *.avi)', options=options)
         if file:
+            self.video_path = file  # Save the video file path
             self.start_video(file)
 
     def start_video(self, video_path):
@@ -184,10 +241,32 @@ class VideoWindow(QWidget):
             self.thread.wait()
 
     def save_crop_rectangle(self):
+        crop_name = self.textbox.text()
+        if crop_name == "":
+            QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
+            return
+
         rect = self.get_crop_rectangle()
-        data = {"x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
+        data = {"name": crop_name, "x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
         with open('crop_rectangle.json', 'w') as f:
             json.dump(data, f)
+        self.textbox.clear()
+
+    def start_cropping(self):
+        crop_name = self.textbox.text()
+        if crop_name == "":
+            QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
+            return
+
+        crop_rect = self.get_crop_rectangle()
+
+        if crop_rect is not None:
+            output_name = self.textbox.text() + ".mp4"
+            self.thread = VideoCropThread(self.video_path, crop_rect, output_name)
+            self.thread.progress_changed.connect(self.progress.setValue)  # Connect signal to progress bar
+            self.thread.start()
+
+
     def closeEvent(self, event):
         self.stop_video()
 def main():
