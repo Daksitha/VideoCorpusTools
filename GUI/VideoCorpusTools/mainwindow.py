@@ -32,7 +32,6 @@ from PyQt5.QtWidgets import (
     QComboBox
 )
 
-
 class ClickableQLabel(QLabel):
     def __init__(self, parent=None):
         super(ClickableQLabel, self).__init__(parent)
@@ -60,6 +59,44 @@ class ClickableQLabel(QLabel):
             pen = QPen(Qt.red, 3)
             painter.setPen(pen)
             painter.drawRect(self.rect)
+
+            # Draw the coordinates for the top-left and bottom-right corners
+            font = QFont()
+            font.setPointSize(20)
+            painter.setFont(font)
+
+            painter.drawText(self.rect.topLeft() - QPoint(0, 5), f"({self.rect.topLeft().x()}, {self.rect.topLeft().y()})")
+            painter.drawText(self.rect.bottomRight() + QPoint(0, 15), f"({self.rect.bottomRight().x()}, {self.rect.bottomRight().y()})")
+
+
+
+# class ClickableQLabel(QLabel):
+#     def __init__(self, parent=None):
+#         super(ClickableQLabel, self).__init__(parent)
+#         self.setMouseTracking(True)
+#         self.rect = QRect()
+#
+#     def mousePressEvent(self, event):
+#         self.rect.setTopLeft(event.pos())
+#         self.rect.setBottomRight(event.pos())
+#         self.update()
+#
+#     def mouseMoveEvent(self, event):
+#         if event.buttons() == Qt.LeftButton:
+#             self.rect.setBottomRight(event.pos())
+#             self.update()
+#
+#     def mouseReleaseEvent(self, event):
+#         self.rect.setBottomRight(event.pos())
+#         self.update()
+#
+#     def paintEvent(self, event):
+#         super().paintEvent(event)
+#         if not self.rect.isNull():
+#             painter = QPainter(self)
+#             pen = QPen(Qt.red, 3)
+#             painter.setPen(pen)
+#             painter.drawRect(self.rect)
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
@@ -233,6 +270,17 @@ class MainWindow(QMainWindow):
         self.resume_button = self.findChild(QPushButton, "resumeButton")
         self.resume_button.clicked.connect(self.resume_video)
         self.resume_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
+
+        self.comboBox = self.findChild(QComboBox, "codecBox")
+        self.comboBox.addItem("mp4v")
+        self.comboBox.addItem("avc1")
+        self.comboBox.addItem("XVID")
+        self.comboBox.addItem("MJPG")
+
+        self.comboBox = self.findChild(QComboBox, "fpsBox")
+        self.comboBox.addItem("30")
+        self.comboBox.addItem("25")
+        self.comboBox.addItem("24")
 
 
         # combox
