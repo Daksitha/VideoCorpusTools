@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Widget</class>
+ <widget class="QWidget" name="Widget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1416</width>
+    <height>783</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Widget</string>
+  </property>
+  <widget class="QWidget" name="verticalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1411</width>
+     <height>581</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="ClickableQLabel" name="videoLabel">
+      <property name="autoFillBackground">
+       <bool>true</bool>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="gridLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>610</y>
+     <width>421</width>
+     <height>161</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="2" column="0">
+     <widget class="QPushButton" name="resume">
+      <property name="text">
+       <string>Resume</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QPushButton" name="pause">
+      <property name="text">
+       <string>Pause</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QPushButton" name="start">
+      <property name="text">
+       <string>Start</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QPushButton" name="loadVideo">
+      <property name="text">
+       <string>Load Video</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="gridLayoutWidget_2">
+   <property name="geometry">
+    <rect>
+     <x>730</x>
+     <y>610</y>
+     <width>301</width>
+     <height>161</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLayout_2">
+    <item row="2" column="0">
+     <widget class="QComboBox" name="codecBox"/>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label">
+      <property name="text">
+       <string>Output video format</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>Output video fps</string>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="0">
+     <widget class="QProgressBar" name="progressBar">
+      <property name="value">
+       <number>24</number>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0">
+     <widget class="QPushButton" name="save_btn">
+      <property name="text">
+       <string>Crop and Save</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QComboBox" name="fps"/>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ClickableQLabel</class>
+   <extends>QLabel</extends>
+   <header location="global">clickableqlabel.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

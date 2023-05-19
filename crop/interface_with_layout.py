@@ -1,6 +1,14 @@
+import sys
+sys.modules["clickableqlabel"] = sys.modules[__name__]
+
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
+from PyQt5 import uic
+from PyQt5.QtCore import pyqtSignal
+import sys
+
 import cv2
 import numpy as np
-import sys
 from pathlib import Path
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPainter, QPen, QPixmap
@@ -8,7 +16,6 @@ import time
 import json
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-
 from PyQt5.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -197,125 +204,28 @@ class VideoCropThread(QThread):
 
 
 
-# class VideoWindow(QWidget):
-#     def __init__(self):
-#         super().__init__()
-#
-#         self.vbox = QVBoxLayout(self)
-#         self.label = QLabel(self)
-#         self.btn = QPushButton("Load Video", self)
-#         self.vbox.addWidget(self.btn)
-#         self.vbox.addWidget(self.label)
-#
-#         self.btn.clicked.connect(self.open_file)
-#
-#         self.setGeometry(300, 300, 800, 600)
-#         self.setWindowTitle('PyQt5 Video')
-#         self.show()
-#
-#     def open_file(self):
-#         options = QFileDialog.Options()
-#         options |= QFileDialog.ReadOnly
-#         file, _ = QFileDialog.getOpenFileName(self, 'QFileDialog.getOpenFileName()', '', 'Video Files (*.mp4 *.flv *.ts *.mts *.avi)', options=options)
-#         if file:
-#             self.start_video(file)
-#
-#     def start_video(self, video_path):
-#         self.thread = VideoThread(video_path)
-#         self.thread.change_pixmap_signal.connect(self.update_frame)
-#         self.thread.frame_size_signal.connect(self.set_frame_size)
-#         self.thread.finished.connect(self.thread.deleteLater)
-#         self.thread.start()
-#
-#     def update_frame(self, cv_img):
-#         qt_img = self.convert_cv_qt(cv_img)
-#         self.label.setPixmap(qt_img)
-#
-#     def set_frame_size(self, w, h):
-#         self.setFixedSize(w, h)
-#
-#     def convert_cv_qt(self, cv_img):
-#         """Convert from an opencv image to QPixmap"""
-#         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-#         h, w, ch = rgb_image.shape
-#         bytes_per_line = ch * w
-#         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
-#         p = convert_to_Qt_format.scaled(self.width(), self.height(), Qt.KeepAspectRatio)
-#         return QPixmap.fromImage(p)
-#
-#     def stop_video(self):
-#         if hasattr(self, 'thread'):
-#             self.thread.stop()
-#             self.thread.wait()
-#
-#     def closeEvent(self, event):
-#         self.stop_video()
-class VideoWindow(QWidget):
+class ClickableQLabel(QLabel):
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        sys.modules["clickableqlabel"] = sys.modules[__name__]
+        uic.loadUi('C:/Users/Administrator/Documents/GitHub/VideoCorpusTools/crop/ui/VideoCorpusTools/form.ui', self)
+        self.findChild(ClickableQLabel, "videoLabel").clicked.connect(self.handle_label_click)
 
-        self.video_path = None
-        self.save_fps = 30 # save video
-        self.output_folder = None
+        # combox
+        self.comboBox = self.findChild(QComboBox, "codecBox")
+        self.comboBox.addItem("mp4v")
+        self.comboBox.addItem("avc1")
+        self.comboBox.addItem("XVID")
+        self.comboBox.addItem("MJPG")
 
-        self.load_btn = QPushButton("Load Video", self)
-        self.save_btn = QPushButton("Save Crop Area", self)
-        self.label = ClickableQLabel(self)
-        self.textbox = QLineEdit(self)
-        self.progress = QProgressBar(self)
-
-        # Create buttons
-        self.start_button = QPushButton('Start', self)
-        self.pause_button = QPushButton('Pause', self)
-        self.resume_button = QPushButton('Resume', self)
-
-
-        self.folder_button = QPushButton('Select Output Folder')
-        #self.stop_button = QPushButton('Stop', self)
-
-        # Create layout
-        hbox = QHBoxLayout()  # Horizontal layout for buttons
-        hbox.addWidget(self.start_button)
-        hbox.addWidget(self.pause_button)
-        hbox.addWidget(self.resume_button)
-        #hbox.addWidget(self.stop_button)
-        self.vbox = QVBoxLayout(self)
-
-        self.vbox.addWidget(self.load_btn)
-        self.vbox.addLayout(hbox)
-
-        # cropping and saving
-        self.chbox = QHBoxLayout()  # Horizontal layout for buttons
-        self.codec_box = QComboBox()
-        self.codec_box.addItem("mp4v")
-        self.codec_box.addItem("avc1")
-        self.codec_box.addItem("XVID")
-        self.codec_box.addItem("MJPG")
-
-        self.chbox.addWidget(self.folder_button)
-        self.chbox.addWidget(self.codec_box)
-        self.chbox.addWidget(self.save_btn)
-        self.vbox.addLayout(self.chbox)
-
-        # input name
-        self.vbox.addWidget(self.textbox)
-        self.vbox.addWidget(self.label)
-
-        # progress bar
-        self.vbox.addWidget(self.progress)
-
-        self.load_btn.clicked.connect(self.open_file)
-        #self.save_btn.clicked.connect(self.save_crop_rectangle)
-        self.save_btn.clicked.connect(self.start_cropping)
-        self.start_button.clicked.connect(self.start_video)
-        self.pause_button.clicked.connect(self.pause_video)
-        self.resume_button.clicked.connect(self.resume_video)
-        self.folder_button.clicked.connect(self.get_output_folder)
-        #self.stop_button.clicked.connect(self.stop_video)
-
-        self.setGeometry(300, 300, 800, 600)
-        self.setWindowTitle('VideoCorpusTools')
-        self.show()
+    def handle_label_click(self):
+        print("Label clicked!")
 
     def open_file(self):
         options = QFileDialog.Options()
@@ -401,11 +311,12 @@ class VideoWindow(QWidget):
             self.crop_thread.progress_changed.connect(self.progress.setValue)  # Connect signal to progress bar
             self.crop_thread.start()
     def closeEvent(self, event):
-        self.stop_video()
-def main():
-    app = QApplication(sys.argv)
-    window = VideoWindow()
-    sys.exit(app.exec_())
+            self.stop_video()
 
-if __name__ == '__main__':
-    main()
+app = QApplication([])
+window = MainWindow()
+window.show()
+app.exec()
+
+
+

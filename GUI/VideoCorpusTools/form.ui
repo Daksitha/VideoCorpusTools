@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Crop Video</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="ClickableQLabel" name="videoLabel"/>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QGroupBox" name="groupBox1">
+        <property name="title">
+         <string>Controls</string>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_1">
+         <item>
+          <widget class="QPushButton" name="loadVideo">
+           <property name="text">
+            <string>Load Video</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pauseButton">
+           <property name="text">
+            <string>Pause</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="resumeButton">
+           <property name="text">
+            <string>Resume</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupBox2">
+        <property name="title">
+         <string>Settings</string>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QComboBox" name="fpsBox">
+           <property name="editable">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="codecBox">
+           <property name="editable">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="fileName">
+           <property name="placeholderText">
+            <string>Enter output file name...</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="saveButton">
+           <property name="text">
+            <string>Save Crop</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QProgressBar" name="progressBar"/>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ClickableQLabel</class>
+   <extends>QLabel</extends>
+   <header>clickableqlabel.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
