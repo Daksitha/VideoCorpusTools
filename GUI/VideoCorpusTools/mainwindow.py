@@ -185,7 +185,7 @@ class ConvertThread(QThread):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         while True:
             output = process.stdout.readline().strip()
-            print(output)
+            #print(output)
             if output == '' and process.poll() is not None:
                 break
             if output:
@@ -506,30 +506,44 @@ class MainWindow(QMainWindow):
 
                 retval = msg.exec_()
                 if retval == QMessageBox.Ok:
-                    # command = ['ffmpeg', '-y', '-i', self.video_path,  '-r', str(30),
-                    #            '-vcodec', 'copy', '-acodec', 'copy', output_file]
-                    command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
-                               '-vcodec', 'copy', '-acodec', 'copy', output_file]
+                    #command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
+                    #           '-vcodec', 'copy', '-acodec', 'copy', output_file]
+                    command = [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        self.video_path,
+                        "-r",
+                        str(self.save_fps.currentText()),  # specify frame rate
+                        "-c:a",
+                        "aac",  # specify audio codec
+                        output_file + "." + output_format
+                    ]
 
                     duration = self.get_video_duration(self.video_path)
 
                     self.convert_thread = ConvertThread(command, duration)
                     self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
-                    #self.convert_thread.signal.connect(self.on_convert_finished)
-                    #self.convertButton.setEnabled(False)
                     self.convert_thread.start()
             else:
-                command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
-                           '-vcodec', 'copy', '-acodec', 'copy', output_file]
+                # command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
+                #            '-vcodec', 'copy', '-acodec', 'copy', output_file]
+                command = [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    self.video_path,
+                    "-r",
+                    str(self.save_fps.currentText()),  # specify frame rate
+                    "-c:a",
+                    "aac",  # specify audio codec
+                    output_file + "." + output_format
+                ]
 
                 duration = self.get_video_duration(self.video_path)
 
                 self.convert_thread = ConvertThread(command, duration)
                 self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
-
-                #self.convert_thread.signal.connect(self.on_convert_finished)
-                #dissable the load button to indicate
-                #self.convertButton.setEnabled(False)
                 self.convert_thread.start()
 
 
