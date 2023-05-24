@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
 import sys
-
+import os
 import cv2
 import numpy as np
 from pathlib import Path
@@ -16,6 +16,7 @@ import time
 import json
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+import subprocess
 from PyQt5.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -29,8 +30,11 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QFileDialog,
     QProgressBar,
-    QComboBox
+    QComboBox,
+    QDialog
 )
+
+import re
 
 class ClickableQLabel(QLabel):
     def __init__(self, parent=None):
@@ -140,13 +144,67 @@ class VideoThread(QThread):
         self._pause_flag = False
 
 
+# class ConvertThread(QThread):
+#     signal = pyqtSignal([str])
+#
+#     def __init__(self, cmd):
+#         QThread.__init__(self)
+#         self.cmd = cmd
+#
+#     def run(self):
+#         process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+#
+#         while True:
+#             output = process.stdout.readline()
+#             if output == '' and process.poll() is not None:
+#                 self.signal.emit('Success')
+#                 break
+#             if output:
+#                 self.signal.emit(output.strip())
+#
+#     # def __init__(self, command):
+#     #     super(ConvertThread, self).__init__()
+#     #     self.command = command
+#     #
+#     # def run(self):
+#     #     try:
+#     #         subprocess.run(self.command, check=True)
+#     #         self.signal.emit('Success')
+#     #     except Exception as e:
+#     #         self.signal.emit(str(e))
+
+class ConvertThread(QThread):
+    progress_signal = pyqtSignal(int)
+
+    def __init__(self, command, duration):
+        super(ConvertThread, self).__init__()
+        self.command = command
+        self.duration = duration
+
+    def run(self):
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        while True:
+            output = process.stdout.readline().strip()
+            print(output)
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                match = re.search(r"time=(\d+:\d+:\d+.\d+)", output)
+                if match is not None:
+                    time = match.group(1)
+                    h, m, s = time.split(':')
+                    progress_time = int(h) * 3600 + int(m) * 60 + float(s)
+                    self.progress_signal.emit(int((progress_time / self.duration) * 100))
+        # After the process has finished, manually set the progress to 100%
+        self.progress_signal.emit(100)
+
+
 class VideoCropThread(QThread):
     progress_changed = pyqtSignal(int)
-    def __init__(self, video_path,video_output_dir, crop_rect, output_name, fps, codec):
+    def __init__(self,video_output_dir, crop_rect, fps, codec):
         super().__init__()
-        self.video_path = video_path
         self.crop_rect = crop_rect
-        self.output_file = self.nova_compatible_folder(video_path, output_name, video_output_dir)
+        self.output_file = video_output_dir
         self.fps = fps
         self.codec = cv2.VideoWriter_fourcc(*f'{codec}')
 
@@ -162,6 +220,9 @@ class VideoCropThread(QThread):
         height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         if self.fps is None:
             self.fps = cap.get(cv2.CAP_PROP_FPS)
+        else:
+            self.fps = self.fps.currentText()
+
         if self.codec is None:
             fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
             fourcc_ch = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
@@ -177,7 +238,7 @@ class VideoCropThread(QThread):
 
         if crop_width < 1 and crop_height < 1:
             # save un cropped
-            out = cv2.VideoWriter(str(self.output_file), self.codec, self.fps, (int(width), int(height)))
+            out = cv2.VideoWriter(str(self.output_file), self.codec, int(self.fps), (int(width), int(height)))
 
             total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
             processed_frames = 0
@@ -224,28 +285,32 @@ class VideoCropThread(QThread):
 
 
 
+class ProgressDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
+        self.progressLabel = QLabel("Starting...", self)
+        self.progressLabel.setAlignment(Qt.AlignCenter)
 
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.progressLabel)
 
-    def nova_compatible_folder(self, video_path, output_name, video_output_dir):
-
-        if video_output_dir is None:
-            #QMessageBox.information(self, "Empty Output Dir", "Saving the cropped in the input directory.")
-            return Path(video_path).parent.joinpath(output_name)
-        else:
-            out_dir = Path(video_output_dir).joinpath(Path(video_path).stem)
-            if not out_dir.is_dir():
-                out_dir.mkdir(parents=True, exist_ok=True)
-
-            return Path(out_dir).joinpath(output_name)
-
-
+    @pyqtSlot(str)
+    def on_progress(self, msg):
+        time_pos = msg.find('time=')
+        if time_pos != -1:
+            self.progressLabel.setText('Progress: ' + msg[time_pos:])
 
 
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.video_path = None
+        self.save_fps = 30  # save video
+        self.output_folder = None
+        self.video_thread = None
         #sys.modules["clickableqlabel"] = sys.modules[__name__]
         #self.ui = Ui_MainWindow()
         #self.ui.setupUi(self)
@@ -254,10 +319,10 @@ class MainWindow(QMainWindow):
         uic.loadUi('form.ui', self)
 
         self.label = self.findChild(ClickableQLabel, "videoLabel")
-
+        self.outputFName = self.findChild(QLineEdit, "fileName")
         self.load_btn = self.findChild(QPushButton, "loadVideo")
         self.load_btn.clicked.connect(self.open_file)
-        self.load_btn.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
+        #self.load_btn.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
 
         # self.start_button = self.findChild(QPushButton, "startButton")
         # self.start_button.clicked.connect(self.start_video)
@@ -265,35 +330,61 @@ class MainWindow(QMainWindow):
 
         self.pause_button = self.findChild(QPushButton, "pauseButton")
         self.pause_button.clicked.connect(self.pause_video)
-        self.pause_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
+        #self.pause_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
 
         self.resume_button = self.findChild(QPushButton, "resumeButton")
         self.resume_button.clicked.connect(self.resume_video)
-        self.resume_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
+        #self.resume_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
 
-        self.comboBox = self.findChild(QComboBox, "codecBox")
-        self.comboBox.addItem("mp4v")
-        self.comboBox.addItem("avc1")
-        self.comboBox.addItem("XVID")
-        self.comboBox.addItem("MJPG")
+        # output video settings
+        self.folder_button = self.findChild(QPushButton, "outdir")
+        self.folder_button.setFixedWidth(20)
+        self.folder_button.clicked.connect(self.get_output_folder)
 
-        self.comboBox = self.findChild(QComboBox, "fpsBox")
-        self.comboBox.addItem("30")
-        self.comboBox.addItem("25")
-        self.comboBox.addItem("24")
+        self.codec_box = self.findChild(QComboBox, "codecBox")
+        self.codec_box.addItems(['mkv', 'mp4', 'flv', 'avi'])
 
+        self.save_fps = self.findChild(QComboBox, "fpsBox")
+        self.save_fps.addItems(['30', '25', '24'])
 
-        # combox
-        #self.comboBox = self.findChild(QComboBox, "codecBox")
-       # self.comboBox.addItem("mp4v")
-       # self.comboBox.addItem("avc1")
-       # self.comboBox.addItem("XVID")
-       # self.comboBox.addItem("MJPG")
+        # save output
+        self.save_btn = self.findChild(QPushButton, "saveButton")
+        self.save_btn.clicked.connect(self.start_cropping)
 
-       # self.comboBox = self.findChild(QComboBox, "fps")
-       # self.comboBox.addItem("30")
-       # self.comboBox.addItem("25")
-       # self.comboBox.addItem("24")
+        # progress bar
+        self.progress = self.findChild(QProgressBar, "progressBar")
+
+        """
+        convert audo and video files int this tab
+        """
+
+        self.loadFileButton = self.findChild(QPushButton, 'loadFileButton')
+        self.loadFileButton.clicked.connect(self.open_file)
+
+        self.convertButton = self.findChild(QPushButton, 'convertButton')
+        self.convertButton.clicked.connect(self.convert_file)
+
+        self.outputFormatBox = self.findChild(QComboBox, 'outputFormatBox')
+        self.outputFormatBox.addItems(['mp4', 'flv', 'avi', 'mkv'])
+
+        self.save_fps = self.findChild(QComboBox, "fpsBox_2")
+        self.save_fps.addItems(['30', '25', '24'])
+
+        self.folder_button = self.findChild(QPushButton, "outdir_2")
+        self.folder_button.setFixedWidth(20)
+        self.folder_button.clicked.connect(self.get_output_folder)
+
+        self.outputFName = self.findChild(QLineEdit, "fileName_2")
+
+        self.pause_button = self.findChild(QPushButton, "pauseButton_2")
+        self.pause_button.clicked.connect(self.pause_video)
+        # self.pause_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
+
+        self.resume_button = self.findChild(QPushButton, "resumeButton_2")
+        self.resume_button.clicked.connect(self.resume_video)
+
+        self.progressBarConv = self.findChild(QProgressBar, "progressBarConv")
+        # self.resume_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}"
 
     def open_file(self):
         options = QFileDialog.Options()
@@ -302,9 +393,11 @@ class MainWindow(QMainWindow):
                                               'Video Files (*.mp4 *.flv *.ts *.mts *.avi)', options=options)
         if file:
             self.video_path = file  # Save the video file path
-            self.start_video(file)  # Start the video
+            self.start_video()  # Start the video
 
-    def start_video(self, video_path):
+    def start_video(self):
+        if self.video_thread is not None:
+            self.video_thread.stop()
         self.video_thread = VideoThread(self.video_path)
         self.video_thread.change_pixmap_signal.connect(self.update_frame)
         self.video_thread.frame_size_signal.connect(self.set_frame_size)
@@ -325,7 +418,8 @@ class MainWindow(QMainWindow):
         self.video_thread.resume()
 
     def stop_video(self):
-        self.video_thread.stop()
+        if self.video_thread is not None:
+            self.video_thread.stop()
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
@@ -360,7 +454,7 @@ class MainWindow(QMainWindow):
         return self.label.rect
 
     def save_crop_rectangle(self):
-        crop_name = self.textbox.text()
+        crop_name = self.outputFName.text()
         if crop_name == "":
             QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
             return
@@ -369,27 +463,101 @@ class MainWindow(QMainWindow):
         data = {"name": crop_name, "x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
         with open('crop_rectangle.json', 'w') as f:
             json.dump(data, f)
-        self.textbox.clear()
+        self.outputFName.clear()
 
     def start_cropping(self):
-        crop_name = self.textbox.text()
+        crop_name = self.outputFName.text()
         if crop_name == "":
             QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
             return
 
         crop_rect = self.get_crop_rectangle()
+        video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder)
+        output_format = self.codec_box.currentText()
+        output_file = video_out + '.' + output_format
 
-        if crop_rect is not None:
-            output_name = self.textbox.text() + ".mp4"
-
-            self.crop_thread = VideoCropThread(self.video_path, self.output_folder, crop_rect, output_name,
-                                               self.save_fps, self.codec_box.currentText())
-            self.crop_thread.progress_changed.connect(self.progress.setValue)  # Connect signal to progress bar
-            self.crop_thread.start()
+        self.crop_thread = VideoCropThread(output_file, crop_rect, self.save_fps, self.codec_box.currentText())
+        self.crop_thread.progress_changed.connect(self.progress.setValue)  # Connect signal to progress bar
+        self.crop_thread.start()
 
     def closeEvent(self, event):
         self.stop_video()
 
+    def convert_file(self):
+        crop_name = self.outputFName.text()
+        if crop_name == "":
+            QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
+            return
+
+        if self.video_path is not None:
+            video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder)
+            output_format = self.outputFormatBox.currentText()
+            output_file = f"{video_out}.{output_format}"
+
+            # Reset the progress bar
+            self.progressBarConv.setValue(0)
+
+            if os.path.exists(output_file):
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Warning)
+                msg.setText(f"File '{video_out}' already exists. Overwrite?")
+                msg.setWindowTitle("Overwrite Confirmation")
+                msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+                retval = msg.exec_()
+                if retval == QMessageBox.Ok:
+                    # command = ['ffmpeg', '-y', '-i', self.video_path,  '-r', str(30),
+                    #            '-vcodec', 'copy', '-acodec', 'copy', output_file]
+                    command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
+                               '-vcodec', 'copy', '-acodec', 'copy', output_file]
+
+                    duration = self.get_video_duration(self.video_path)
+
+                    self.convert_thread = ConvertThread(command, duration)
+                    self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
+                    #self.convert_thread.signal.connect(self.on_convert_finished)
+                    #self.convertButton.setEnabled(False)
+                    self.convert_thread.start()
+            else:
+                command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
+                           '-vcodec', 'copy', '-acodec', 'copy', output_file]
+
+                duration = self.get_video_duration(self.video_path)
+
+                self.convert_thread = ConvertThread(command, duration)
+                self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
+
+                #self.convert_thread.signal.connect(self.on_convert_finished)
+                #dissable the load button to indicate
+                #self.convertButton.setEnabled(False)
+                self.convert_thread.start()
+
+
+    @pyqtSlot(str)
+    def on_convert_finished(self, message):
+        QMessageBox.information(self, 'Conversion Result', message)
+        self.convertButton.setEnabled(True)
+
+    def get_video_duration(self, video_path):
+        result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                 "format=duration", "-of",
+                                 "default=noprint_wrappers=1:nokey=1", video_path],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        duration = float(result.stdout)
+        return duration
+
+    def nova_compatible_folder(self, video_path, output_name, video_output_dir):
+
+        if video_output_dir is None:
+            #QMessageBox.information(self, "Empty Output Dir", "Saving the cropped in the input directory.")
+            return Path(video_path).parent.joinpath(output_name)
+        else:
+            out_dir = Path(video_output_dir).joinpath(Path(video_path).stem)
+            if not out_dir.is_dir():
+                out_dir.mkdir(parents=True, exist_ok=True)
+
+            return Path(out_dir).joinpath(output_name)
 
 
 if __name__ == "__main__":
