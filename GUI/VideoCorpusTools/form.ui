@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1424</width>
+    <width>1586</width>
     <height>750</height>
    </rect>
   </property>
@@ -28,7 +28,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="conversionTab">
        <property name="title" stdset="0">
@@ -118,22 +118,136 @@
            </layout>
           </item>
           <item>
+           <widget class="QRadioButton" name="createDirectory">
+            <property name="text">
+             <string>Create a directory</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="convertButton">
             <property name="text">
              <string>Convert</string>
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QProgressBar" name="progressBarConv">
-            <property name="value">
-             <number>0</number>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
        </layout>
+      </widget>
+      <widget class="QWidget" name="BatchConvert">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>651</height>
+        </size>
+       </property>
+       <attribute name="title">
+        <string>Page</string>
+       </attribute>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>20</y>
+          <width>1541</width>
+          <height>461</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_8">
+         <item>
+          <widget class="QPushButton" name="loadFileButton_3">
+           <property name="text">
+            <string>Load File</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pauseButton_3">
+           <property name="text">
+            <string>Pause</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="resumeButton_3">
+           <property name="text">
+            <string>Resume</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QLabel" name="label_9">
+             <property name="text">
+              <string>output dir</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="outdir_3">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_10">
+             <property name="text">
+              <string>fps</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="fpsBox_3">
+             <property name="editable">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_11">
+             <property name="text">
+              <string>codec</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="outputFormatBox_2"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_12">
+             <property name="text">
+              <string>output name</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="fileName_3">
+             <property name="placeholderText">
+              <string>Enter output file name...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="createDirectory_2">
+           <property name="text">
+            <string>Create a directory</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="convertButton_2">
+           <property name="text">
+            <string>Convert</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
       </widget>
       <widget class="QWidget" name="cropTab">
        <attribute name="title">
@@ -252,14 +366,101 @@
        <attribute name="title">
         <string>Trim</string>
        </attribute>
-       <layout class="QVBoxLayout" name="trimTabLayout"/>
+       <layout class="QVBoxLayout" name="verticalLayoutTrim">
+        <item>
+         <widget class="QGroupBox" name="groupBoxTrim">
+          <property name="title">
+           <string>Trim Controls</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayoutTrimControls">
+           <item>
+            <widget class="QPushButton" name="loadFileTrimButton">
+             <property name="text">
+              <string>Load File</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutTrimTime">
+             <item>
+              <widget class="QSlider" name="timelineSlider">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="currentTimeLabel"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="durationLabel"/>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutTrimFields">
+             <item>
+              <widget class="QLineEdit" name="startTimeField"/>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="endTimeField"/>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="trimButton">
+             <property name="text">
+              <string>Trim</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="Audio">
        <attribute name="title">
         <string>Audio</string>
        </attribute>
-       <layout class="QVBoxLayout" name="convertTabLayout"/>
+       <layout class="QVBoxLayout" name="verticalLayoutAudio">
+        <item>
+         <widget class="QPushButton" name="audioExtractFileButton">
+          <property name="text">
+           <string>Load File</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="audioExtractOutputDirButton">
+          <property name="text">
+           <string>Select Output Directory</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="audioExtractOutputName">
+          <property name="placeholderText">
+           <string>Enter output file name...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="audioExtractButton">
+          <property name="text">
+           <string>Extract Audio</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QProgressBar" name="progressBar">
+      <property name="value">
+       <number>24</number>
+      </property>
      </widget>
     </item>
    </layout>

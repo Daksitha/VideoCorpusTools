@@ -31,7 +31,9 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QProgressBar,
     QComboBox,
-    QDialog
+    QDialog,
+    QSlider,
+    QRadioButton
 )
 
 import re
@@ -73,34 +75,6 @@ class ClickableQLabel(QLabel):
             painter.drawText(self.rect.bottomRight() + QPoint(0, 15), f"({self.rect.bottomRight().x()}, {self.rect.bottomRight().y()})")
 
 
-
-# class ClickableQLabel(QLabel):
-#     def __init__(self, parent=None):
-#         super(ClickableQLabel, self).__init__(parent)
-#         self.setMouseTracking(True)
-#         self.rect = QRect()
-#
-#     def mousePressEvent(self, event):
-#         self.rect.setTopLeft(event.pos())
-#         self.rect.setBottomRight(event.pos())
-#         self.update()
-#
-#     def mouseMoveEvent(self, event):
-#         if event.buttons() == Qt.LeftButton:
-#             self.rect.setBottomRight(event.pos())
-#             self.update()
-#
-#     def mouseReleaseEvent(self, event):
-#         self.rect.setBottomRight(event.pos())
-#         self.update()
-#
-#     def paintEvent(self, event):
-#         super().paintEvent(event)
-#         if not self.rect.isNull():
-#             painter = QPainter(self)
-#             pen = QPen(Qt.red, 3)
-#             painter.setPen(pen)
-#             painter.drawRect(self.rect)
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
@@ -144,34 +118,6 @@ class VideoThread(QThread):
         self._pause_flag = False
 
 
-# class ConvertThread(QThread):
-#     signal = pyqtSignal([str])
-#
-#     def __init__(self, cmd):
-#         QThread.__init__(self)
-#         self.cmd = cmd
-#
-#     def run(self):
-#         process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-#
-#         while True:
-#             output = process.stdout.readline()
-#             if output == '' and process.poll() is not None:
-#                 self.signal.emit('Success')
-#                 break
-#             if output:
-#                 self.signal.emit(output.strip())
-#
-#     # def __init__(self, command):
-#     #     super(ConvertThread, self).__init__()
-#     #     self.command = command
-#     #
-#     # def run(self):
-#     #     try:
-#     #         subprocess.run(self.command, check=True)
-#     #         self.signal.emit('Success')
-#     #     except Exception as e:
-#     #         self.signal.emit(str(e))
 
 class ConvertThread(QThread):
     progress_signal = pyqtSignal(int)
@@ -201,12 +147,19 @@ class ConvertThread(QThread):
 
 class VideoCropThread(QThread):
     progress_changed = pyqtSignal(int)
-    def __init__(self,video_output_dir, crop_rect, fps, codec):
+    def __init__(self,input_video, video_output_dir, crop_rect, fps, codec):
         super().__init__()
         self.crop_rect = crop_rect
         self.output_file = video_output_dir
         self.fps = fps
-        self.codec = cv2.VideoWriter_fourcc(*f'{codec}')
+        self.video_path = input_video
+        self.codec_dict = {
+            'mp4': 'mp4v',
+            'flv': 'FLV1',
+            'avi': 'XVID',
+            'mkv': 'X264'
+        }
+        self.codec = cv2.VideoWriter_fourcc(*self.codec_dict.get(codec))
 
     def run(self):
         # Open the video file.
@@ -221,7 +174,7 @@ class VideoCropThread(QThread):
         if self.fps is None:
             self.fps = cap.get(cv2.CAP_PROP_FPS)
         else:
-            self.fps = self.fps.currentText()
+            self.fps = float(self.fps.currentText())
 
         if self.codec is None:
             fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
@@ -283,6 +236,29 @@ class VideoCropThread(QThread):
             cap.release()
             out.release()
 
+class TrimThread(QThread):
+    progress_signal = pyqtSignal(int)
+
+    def __init__(self, command, duration):
+        super(TrimThread, self).__init__()
+        self.command = command
+        self.duration = duration
+
+    def run(self):
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        while True:
+            output = process.stdout.readline().strip()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                match = re.search(r"time=(\d+:\d+:\d+.\d+)", output)
+                if match is not None:
+                    time = match.group(1)
+                    h, m, s = time.split(':')
+                    progress_time = int(h) * 3600 + int(m) * 60 + float(s)
+                    self.progress_signal.emit(int((progress_time / self.duration) * 100))
+        # After the process has finished, manually set the progress to 100%
+        self.progress_signal.emit(100)
 
 
 class ProgressDialog(QDialog):
@@ -302,6 +278,30 @@ class ProgressDialog(QDialog):
             self.progressLabel.setText('Progress: ' + msg[time_pos:])
 
 
+class AudioExtractThread(QThread):
+    progress_signal = pyqtSignal(int)
+
+    def __init__(self, command, duration):
+        super(AudioExtractThread, self).__init__()
+        self.command = command
+        self.duration = duration
+
+    def run(self):
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        while True:
+            output = process.stdout.readline().strip()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                match = re.search(r"time=(\d+:\d+:\d+.\d+)", output)
+                if match is not None:
+                    time = match.group(1)
+                    h, m, s = time.split(':')
+                    progress_time = int(h) * 3600 + int(m) * 60 + float(s)
+                    self.progress_signal.emit(int((progress_time / self.duration) * 100))
+        # After the process has finished, manually set the progress to 100%
+        self.progress_signal.emit(100)
+
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
         uic.loadUi('form.ui', self)
 
         self.label = self.findChild(ClickableQLabel, "videoLabel")
-        self.outputFName = self.findChild(QLineEdit, "fileName")
+        self.outputFName2 = self.findChild(QLineEdit, "fileName")
         self.load_btn = self.findChild(QPushButton, "loadVideo")
         self.load_btn.clicked.connect(self.open_file)
         #self.load_btn.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}")
@@ -342,7 +342,7 @@ class MainWindow(QMainWindow):
         self.folder_button.clicked.connect(self.get_output_folder)
 
         self.codec_box = self.findChild(QComboBox, "codecBox")
-        self.codec_box.addItems(['mkv', 'mp4', 'flv', 'avi'])
+        self.codec_box.addItems([ 'mp4', 'flv', 'avi','mkv'])
 
         self.save_fps = self.findChild(QComboBox, "fpsBox")
         self.save_fps.addItems(['30', '25', '24'])
@@ -350,6 +350,8 @@ class MainWindow(QMainWindow):
         # save output
         self.save_btn = self.findChild(QPushButton, "saveButton")
         self.save_btn.clicked.connect(self.start_cropping)
+
+        self.createDirectory = self.findChild(QRadioButton, "createDirectory")
 
         # progress bar
         self.progress = self.findChild(QProgressBar, "progressBar")
@@ -383,8 +385,36 @@ class MainWindow(QMainWindow):
         self.resume_button = self.findChild(QPushButton, "resumeButton_2")
         self.resume_button.clicked.connect(self.resume_video)
 
-        self.progressBarConv = self.findChild(QProgressBar, "progressBarConv")
+        self.progressBar = self.findChild(QProgressBar, "progressBar")
+        self.progressBar.setValue(0)
         # self.resume_button.setStyleSheet("QPushButton {border-radius: 25px; padding: 10px;}"
+
+        # Audio extraction tab
+        self.audioExtractFileButton = self.findChild(QPushButton, 'audioExtractFileButton')
+        self.audioExtractFileButton.clicked.connect(self.open_file)
+
+        self.audioExtractOutputDirButton = self.findChild(QPushButton, 'audioExtractOutputDirButton')
+        self.audioExtractOutputDirButton.clicked.connect(self.get_output_folder)
+
+        self.audioExtractOutputName = self.findChild(QLineEdit, 'audioExtractOutputName')
+
+        self.audioExtractButton = self.findChild(QPushButton, 'audioExtractButton')
+        self.audioExtractButton.clicked.connect(self.extract_audio)
+
+        # Trim tab
+        self.loadFileTrimButton = self.findChild(QPushButton, 'loadFileTrimButton')
+        self.loadFileTrimButton.clicked.connect(self.open_file)
+
+        self.startTimeField = self.findChild(QLineEdit, 'startTimeField')
+        self.endTimeField = self.findChild(QLineEdit, 'endTimeField')
+
+        self.trimButton = self.findChild(QPushButton, 'trimButton')
+        self.trimButton.clicked.connect(self.trim_video)
+
+        self.timelineSlider = self.findChild(QSlider, 'timelineSlider')
+
+        self.currentTimeLabel = self.findChild(QLabel, 'currentTimeLabel')
+        self.durationLabel = self.findChild(QLabel, 'durationLabel')
 
     def open_file(self):
         options = QFileDialog.Options()
@@ -454,7 +484,7 @@ class MainWindow(QMainWindow):
         return self.label.rect
 
     def save_crop_rectangle(self):
-        crop_name = self.outputFName.text()
+        crop_name = self.outputFName2.text()
         if crop_name == "":
             QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
             return
@@ -463,20 +493,20 @@ class MainWindow(QMainWindow):
         data = {"name": crop_name, "x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
         with open('crop_rectangle.json', 'w') as f:
             json.dump(data, f)
-        self.outputFName.clear()
+        self.outputFName2.clear()
 
     def start_cropping(self):
-        crop_name = self.outputFName.text()
+        crop_name = self.outputFName2.text()
         if crop_name == "":
             QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
             return
 
         crop_rect = self.get_crop_rectangle()
-        video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder)
+        video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder, self.createDirectory)
         output_format = self.codec_box.currentText()
-        output_file = video_out + '.' + output_format
+        output_file = video_out.with_suffix(f".{output_format}")
 
-        self.crop_thread = VideoCropThread(output_file, crop_rect, self.save_fps, self.codec_box.currentText())
+        self.crop_thread = VideoCropThread(self.video_path, output_file, crop_rect, self.save_fps, self.codec_box.currentText())
         self.crop_thread.progress_changed.connect(self.progress.setValue)  # Connect signal to progress bar
         self.crop_thread.start()
 
@@ -486,16 +516,16 @@ class MainWindow(QMainWindow):
     def convert_file(self):
         crop_name = self.outputFName.text()
         if crop_name == "":
-            QMessageBox.information(self, "Empty Field", "Please enter a name for the crop area.")
+            QMessageBox.information(self, "Empty Field", "Please enter output file name.")
             return
 
         if self.video_path is not None:
-            video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder)
+            video_out = self.nova_compatible_folder(self.video_path, crop_name, self.output_folder, self.createDirectory)
             output_format = self.outputFormatBox.currentText()
             output_file = f"{video_out}.{output_format}"
 
             # Reset the progress bar
-            self.progressBarConv.setValue(0)
+            self.progressBar.setValue(0)
 
             if os.path.exists(output_file):
                 msg = QMessageBox(self)
@@ -523,7 +553,7 @@ class MainWindow(QMainWindow):
                     duration = self.get_video_duration(self.video_path)
 
                     self.convert_thread = ConvertThread(command, duration)
-                    self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
+                    self.convert_thread.progress_signal.connect(self.progressBar.setValue)
                     self.convert_thread.start()
             else:
                 # command = ['ffmpeg', '-y', '-i', self.video_path, '-r', str(self.save_fps.currentText()),
@@ -543,9 +573,41 @@ class MainWindow(QMainWindow):
                 duration = self.get_video_duration(self.video_path)
 
                 self.convert_thread = ConvertThread(command, duration)
-                self.convert_thread.progress_signal.connect(self.progressBarConv.setValue)
+                self.convert_thread.progress_signal.connect(self.progressBar.setValue)
                 self.convert_thread.start()
 
+    def trim_video(self):
+        start_time = self.startTimeField.text()
+        end_time = self.endTimeField.text()
+        if start_time == "" or end_time == "":
+            QMessageBox.information(self, "Empty Field", "Please enter both start time and end time.")
+            return
+
+        if self.video_path is not None:
+            trim_out = self.nova_compatible_folder(self.video_path, "trimmed", self.output_folder, self.createDirectory)
+            output_file = f"{trim_out}.mp4"
+
+            command = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.video_path,
+                "-ss",  # start time
+                start_time,
+                "-to",  # end time
+                end_time,
+                "-c:v",
+                "copy",  # copy the video codec
+                "-c:a",
+                "copy",  # copy the audio codec
+                output_file
+            ]
+
+            duration = self.get_video_duration(self.video_path)
+
+            self.trim_thread = TrimThread(command, duration)
+            self.trim_thread.progress_signal.connect(self.progressBar.setValue)
+            self.trim_thread.start()
 
     @pyqtSlot(str)
     def on_convert_finished(self, message):
@@ -561,9 +623,9 @@ class MainWindow(QMainWindow):
         duration = float(result.stdout)
         return duration
 
-    def nova_compatible_folder(self, video_path, output_name, video_output_dir):
+    def nova_compatible_folder(self, video_path, output_name, video_output_dir, createDirectory):
 
-        if video_output_dir is None:
+        if createDirectory.isChecked():
             #QMessageBox.information(self, "Empty Output Dir", "Saving the cropped in the input directory.")
             return Path(video_path).parent.joinpath(output_name)
         else:
@@ -572,6 +634,36 @@ class MainWindow(QMainWindow):
                 out_dir.mkdir(parents=True, exist_ok=True)
 
             return Path(out_dir).joinpath(output_name)
+
+    def extract_audio(self):
+        output_name = self.audioExtractOutputName.text()
+        if output_name == "":
+            QMessageBox.information(self, "Empty Field", "Please enter output file name.")
+            return
+
+        if self.video_path is not None:
+            audio_out = self.nova_compatible_folder(self.video_path, output_name, self.output_folder, self.createDirectory )
+            output_file = f"{audio_out}.wav"
+
+            # Reset the progress bar
+            self.progressBar.setValue(0)
+
+            command = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.video_path,
+                "-vn",  # no video
+                "-acodec",
+                "pcm_s16le",  # output a .wav file
+                output_file
+            ]
+
+            duration = self.get_video_duration(self.video_path)
+
+            self.audio_extract_thread = AudioExtractThread(command, duration)
+            self.audio_extract_thread.progress_signal.connect(self.progressBar.setValue)
+            self.audio_extract_thread.start()
 
 
 if __name__ == "__main__":
