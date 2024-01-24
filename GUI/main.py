@@ -6,12 +6,16 @@ import platform
 import cv2
 import numpy as np
 import random
+from pathlib import Path
+import pythoncom
+pythoncom.CoInitialize()
 class VideoPlayer:
     def __init__(self, root):
         self.root = root
         self.root.title("Video Player")
 
         self.file_path = None
+        self.file_nme = None
 
         # Create VLC player instance
         self.vlc_instance = vlc.Instance()
@@ -78,6 +82,8 @@ class VideoPlayer:
         self.cropping_line_position = None
         self.cropping_video_height = None
 
+
+
         # File path input
         self.file_path_label = tk.Label(self.crop_frame, text="Output Directory:")
         self.file_path_label.pack(side=tk.LEFT)
@@ -99,12 +105,29 @@ class VideoPlayer:
         self.codec_label = tk.Label(self.crop_frame, text="Codec:")
         self.codec_label.pack(side=tk.LEFT)
         self.codec_var = tk.StringVar()
-        self.codec_menu = tk.OptionMenu(self.crop_frame, self.codec_var, "XVID", "MJPG", "H264", "MP4V")
+        self.codec_menu = tk.OptionMenu(self.crop_frame, self.codec_var, "XVID", "MJPG", "MP4V")
         self.codec_menu.pack(side=tk.LEFT)
 
+        self.name_crop = tk.Frame(self.root)
+        self.name_crop.pack(pady=10)
+
+        # Text box for left side video name
+        self.left_video_name_label = tk.Label(self.name_crop, text="Left Video Name:")
+        self.left_video_name_label.pack(side=tk.LEFT)
+        self.left_video_name_entry = tk.Entry(self.name_crop, width=15)
+        self.left_video_name_entry.pack(side=tk.LEFT)
+        self.left_video_name_entry.insert(0, "infant")
+
+        # Text box for right side video name
+        self.right_video_name_label = tk.Label(self.name_crop, text="Right Video Name:")
+        self.right_video_name_label.pack(side=tk.LEFT)
+        self.right_video_name_entry = tk.Entry(self.name_crop, width=15)
+        self.right_video_name_entry.pack(side=tk.LEFT)
+        self.right_video_name_entry.insert(0,"caregiver")
+
         # Button to crop video
-        self.crop_button = tk.Button(self.crop_frame, text="Crop Video", command=self.crop_video)
-        self.crop_button.pack(side=tk.LEFT)
+        self.crop_button = tk.Button(self.name_crop, text="Crop Video", command=self.crop_video)
+        self.crop_button.pack(side=tk.RIGHT)
 
         self.info_frame = tk.Frame(self.root)
         self.info_frame.pack(pady=10)
@@ -130,7 +153,11 @@ class VideoPlayer:
     def load_video(self):
         self.file_path = filedialog.askopenfilename(title="Open Video", filetypes=(
         ("All Files", "*.*"), ("MP4 Files", "*.mp4"), ("AVI Files", "*.avi"), ("MOV Files", "*.mov")))
+
+
         if self.file_path:
+            self.file_name = Path(self.file_path).stem
+
             media = self.vlc_instance.media_new(self.file_path)
             self.player.set_media(media)
 
@@ -373,7 +400,7 @@ class VideoPlayer:
 
         return refined_line_position
 
-    def detect_line_in_frame(self, frame):
+    def detect_line_in_frame_old(self, frame):
         # Define the range for the middle section
         # ex: x1 = 1920//5 = 384 and x4 = 4 * 1920 // 5 = 1536
         width = frame.shape[1]
@@ -395,9 +422,32 @@ class VideoPlayer:
         x = np.argmax(summed_derivative) + start_col
         return x
 
+    def detect_line_in_frame(self, frame):
+        # Convert to grayscale
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Apply Canny edge detection
+        edges = cv2.Canny(gray_frame, threshold1=50, threshold2=150)
+
+        # Define the range for the middle section
+        width = frame.shape[1]
+        start_col = width // 5
+        end_col = 4 * width // 5
+
+        # Focus only on the middle section
+        middle_section_edges = edges[:, start_col:end_col]
+
+        # Sum the edge values for all rows
+        summed_edges = np.sum(middle_section_edges, axis=0)
+
+        # Find the location of the peak within the middle section
+        x = np.argmax(summed_edges) + start_col
+        return x
+
     def crop_video(self):
         if self.player.is_playing():
             self.player.pause()
+
         # Error handling for missing inputs
         if not self.file_path:
             print("Error: No file path provided.")
@@ -415,46 +465,75 @@ class VideoPlayer:
                 return
 
         # Define codec and create VideoWriter object
-        fourcc = cv2.VideoWriter_fourcc(*self.codec_var.get())
-        cap = cv2.VideoCapture(self.file_path)
-        fps = int(self.fps_entry.get())
-
-        success, frame = cap.read()
-        if not success:
-            print("Failed to read the video file.")
+        try:
+            fourcc = cv2.VideoWriter_fourcc(*self.codec_var.get())
+        except Exception as e:
+            print(f"Error with codec: {e}")
             return
 
-        height, width = frame.shape[:2]
-        left_output = cv2.VideoWriter(f'{self.file_path_out}/left_cropped.mp4', fourcc, fps, (self.cropping_line_position, height))
-        right_output = cv2.VideoWriter(f'{self.file_path_out}/right_cropped.mp4', fourcc, fps, (width - self.cropping_line_position, height))
+        try:
+            cap = cv2.VideoCapture(self.file_path)
+            if not cap.isOpened():
+                print("Error: Unable to open video file.")
+                return
+            fps = int(self.fps_entry.get())
+        except Exception as e:
+            print(f"Error opening video file: {e}")
+            return
+
+        try:
+            success, frame = cap.read()
+            if not success:
+                print("Failed to read the video file.")
+                return
+            height, width = frame.shape[:2]
+        except Exception as e:
+            print(f"Error reading the video frame: {e}")
+            return
+
+        # Read the custom names for left and right videos
+        left_video_name = self.file_name + "_" + self.left_video_name_entry.get()
+        right_video_name = self.file_name + "_" + self.right_video_name_entry.get()
+
+        try:
+            left_output = cv2.VideoWriter(f'{self.file_path_out}/{left_video_name}.avi', fourcc, fps,
+                                          (self.cropping_line_position, height))
+            right_output = cv2.VideoWriter(f'{self.file_path_out}/{right_video_name}.avi', fourcc, fps,
+                                           (width - self.cropping_line_position, height))
+        except Exception as e:
+            print(f"Error creating video writers: {e}")
+            return
 
         current_frame = 0
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.progress['maximum'] = total_frames
 
         while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
+            try:
+                success, frame = cap.read()
+                if not success:
+                    break
+
+                # Cropping the frame
+                left_frame = frame[:, :self.cropping_line_position]
+                right_frame = frame[:, self.cropping_line_position:]
+
+                # Writing the cropped frames
+                left_output.write(left_frame)
+                right_output.write(right_frame)
+
+                # Update progress bar
+                current_frame += 1
+                self.progress['value'] = current_frame
+                self.root.update_idletasks()  # Update the GUI to reflect progress
+            except Exception as e:
+                print(f"Error during video processing: {e}")
                 break
-
-            # Cropping the frame
-            left_frame = frame[:, :self.cropping_line_position]
-            right_frame = frame[:, self.cropping_line_position:]
-
-            # Writing the cropped frames
-            left_output.write(left_frame)
-            right_output.write(right_frame)
-
-            # Update progress bar
-            current_frame += 1
-            self.progress['value'] = current_frame
-            self.root.update_idletasks()  # Update the GUI to reflect progress
 
         # Release everything when done
         cap.release()
         left_output.release()
         right_output.release()
-        cv2.destroyAllWindows()
         print("Cropping completed.")
 
 
